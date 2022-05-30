@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 import asyncio
@@ -7,7 +8,7 @@ DEBUG=False
 if len(sys.argv)>1 and sys.argv[1]=='--debug':
     DEBUG=True
 
-cfg=json.load(open('collect.json'))
+cfg=json.load(open(os.path.join(os.path.dirname(__file__),'collect.json'),'rb'))
 alpha=cfg['alpha']
 devices=[cfg[i] for i in cfg['collect']]
 
