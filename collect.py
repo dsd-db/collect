@@ -1,12 +1,12 @@
 import os
 import sys
+import time
 import json
 import asyncio
 from bleak import BleakClient
 
 DEBUG=False
-if len(sys.argv)>1 and sys.argv[1]=='--debug':
-    DEBUG=True
+OFFLINE=False
 
 cfg=json.load(open(os.path.join(os.path.dirname(__file__),'collect.json'),'rb'))
 alpha=cfg['alpha']
@@ -72,7 +72,7 @@ def f(addr:str,data:bytes)->None:
     if not all(cache_flag.values()):
         return
     for i in devices:
-        print(','.join([str(j) for j in cache[i]]),end='\n' if i is devices[-1] else ',')
+        print(','.join([str(j) for j in cache[i]]),end='\n' if i is devices[-1] else ',',)
         cache_flag[i]=False
     sys.stdout.flush()
 
@@ -95,11 +95,32 @@ async def run(id):
         except:
             _count+=1
             if _count>=10:
-                print("Failed to connect to {}".format(id))
-                sys.exit(0)
+                if DEBUG:
+                    print("Failed to connect to {}".format(id))
+                # sys.exit(0)
+                OFFLINE=True
+                return
+
 
 async def main():
     tasks=[run(i) for i in devices]
     await asyncio.gather(*tasks)
 
-asyncio.run(main())
+def offline():
+    CSV=os.path.join(os.path.abspath(os.path.dirname(__file__)),'1.csv')
+    data=list()
+    for i in open(CSV,'r').read().split('\n'):
+        i=i.split(',')
+        data.append(i[0:30]+i[75:90])
+    n=len(data)
+    i=0
+    while True:
+        print(data[i],flush=True)
+        i=(i+1)%n
+        time.sleep(1/20)
+
+while True:
+    if OFFLINE:
+        offline()
+    else:
+        asyncio.run(main())
