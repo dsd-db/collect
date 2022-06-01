@@ -111,7 +111,7 @@ def offline():
     data=list()
     for i in open(CSV,'r').read().split('\n'):
         i=i.split(',')
-        data.append(i[0:30]+i[75:90])
+        data.append(','.join(i[0:30]+i[75:90]))
     n=len(data)
     i=0
     while True:
