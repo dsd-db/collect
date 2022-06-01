@@ -6,7 +6,7 @@ import asyncio
 from bleak import BleakClient
 
 DEBUG=False
-OFFLINE=False
+OFFLINE=True
 
 cfg=json.load(open(os.path.join(os.path.dirname(__file__),'collect.json'),'rb'))
 alpha=cfg['alpha']
