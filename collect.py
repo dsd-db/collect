@@ -1,12 +1,12 @@
 import os
-import sys
 import time
 import json
 import asyncio
+import threading
 from bleak import BleakClient
 
 DEBUG=False
-OFFLINE=True
+OFFLINE=False
 
 cfg=json.load(open(os.path.join(os.path.dirname(__file__),'collect.json'),'rb'))
 alpha=cfg['alpha']
@@ -69,12 +69,6 @@ def f(addr:str,data:bytes)->None:
     cache[addr]=(ax,ay,az,wx,wy,wz,Roll,Pitch,Yaw,alx,aly,alz,agx,agy,agz)
     cache_flag[addr]=True
 
-    if not all(cache_flag.values()):
-        return
-    for i in devices:
-        print(','.join([str(j) for j in cache[i]]),end='\n' if i is devices[-1] else ',',)
-        cache_flag[i]=False
-    sys.stdout.flush()
 
 
 def notification_handler(id):
@@ -87,7 +81,7 @@ async def run(id):
     while True:
         try:
             if DEBUG:
-                print("Connecting to: {}".format(id))
+                print('BConnect:',id)
             client = BleakClient(id)
             await client.connect()
             await client.start_notify(cfg['imuReadUUID'], notification_handler(id))
@@ -96,7 +90,7 @@ async def run(id):
             _count+=1
             if _count>=10:
                 if DEBUG:
-                    print("Failed to connect to {}".format(id))
+                    print('BFailed:',id)
                 # sys.exit(0)
                 OFFLINE=True
                 return
@@ -106,21 +100,34 @@ async def main():
     tasks=[run(i) for i in devices]
     await asyncio.gather(*tasks)
 
-def offline():
-    CSV=os.path.join(os.path.abspath(os.path.dirname(__file__)),'1.csv')
-    data=list()
-    for i in open(CSV,'r').read().split('\n'):
-        i=i.split(',')
-        data.append(','.join(i[0:30]+i[75:90]))
-    n=len(data)
-    i=0
-    while True:
-        print(data[i],flush=True)
-        i=(i+1)%n
-        time.sleep(1/20)
 
-while True:
+CSV=os.path.join(os.path.dirname(__file__),'collect.csv')
+data=list()
+for i in open(CSV,'r').read().split('\n'):
+    i=i.split(',')
+    data.append(','.join(i[0:30]+i[75:90]).encode('utf8'))
+n=len(data)
+i=-1
+
+def getmsg()->bytes:
+    while not all(cache_flag.values()):
+        if OFFLINE:
+            break
+        time.sleep(0.01)
     if OFFLINE:
-        offline()
-    else:
-        asyncio.run(main())
+        i=(i+1)%n
+        return data[i]
+    ans=''
+    for i in devices:
+        ans+=','.join([str(j) for j in cache[i]])
+        ans+='\n' if i is devices[-1] else ','
+        cache_flag[i]=False
+    return ans.encode('utf8')
+
+
+def con()->None:
+    while True:
+        print(getmsg().decode('utf8'),flush=True)
+
+threading.Thread(target=con,daemon=True).start()
+asyncio.run(main())

@@ -1,3 +1,4 @@
+import os
 import json
 import asyncio
 from bleak import BleakScanner
@@ -26,4 +27,4 @@ cfg={
 }
 for i in cfg['collect']:
     assert i in cfg
-open('collect.json','w').write(json.dumps(cfg,skipkeys=True,ensure_ascii=True,indent=4,sort_keys=True))
+open(os.path.join(os.path.dirname(__file__),'collect.json'),'w').write(json.dumps(cfg,skipkeys=True,ensure_ascii=True,indent=4,sort_keys=True))
