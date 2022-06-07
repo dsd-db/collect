@@ -1,19 +1,36 @@
+from itertools import count
 import os
 import time
 import json
 import asyncio
 import threading
-from bleak import BleakClient
 
-DEBUG=False
-OFFLINE=False
+_BLEAK='_BLEAK'
+_READ='_READ'
+_SOCKET='_SOCKET'
+
+SWITCH=_SOCKET
+DEBUG=True
+
+if SWITCH==_SOCKET:
+    import socket
+if SWITCH==_BLEAK:
+    from bleak import BleakClient
+
+def pt(s:str,flush:bool=False)->None:
+    if flush or DEBUG:
+        print(s,flush=True)
+
 
 cfg=json.load(open(os.path.join(os.path.dirname(__file__),'collect.json'),'rb'))
 alpha=cfg['alpha']
 devices=[cfg[i] for i in cfg['collect']]
+ADDR=(cfg['ip'],cfg['port'])
+KEY=open(os.path.join(os.path.dirname(__file__),'collect.key'),'rb').read()
 
-cache={}
+cache=dict()
 cache_flag={i:False for i in devices}
+
 
 def f(addr:str,data:bytes)->None:
     assert len(data)==20
@@ -70,31 +87,27 @@ def f(addr:str,data:bytes)->None:
     cache_flag[addr]=True
 
 
-
-def notification_handler(id):
+def notification_handler(devid):
     def handler(sender,data):
-        f(id,data)
+        f(devid,data)
     return handler
 
-async def run(id):
+async def run(devid):
+    global SWITCH
     _count=0
     while True:
         try:
-            if DEBUG:
-                print('BConnect:',id)
-            client = BleakClient(id)
+            pt('BConnect: %s'%(devid,))
+            client = BleakClient(devid)
             await client.connect()
-            await client.start_notify(cfg['imuReadUUID'], notification_handler(id))
+            await client.start_notify(cfg['imuReadUUID'], notification_handler(devid))
             _count=0
         except:
             _count+=1
             if _count>=10:
-                if DEBUG:
-                    print('BFailed:',id)
-                # sys.exit(0)
-                OFFLINE=True
+                pt('BFailed: %s'%(devid,))
+                SWITCH=_READ
                 return
-
 
 async def main():
     tasks=[run(i) for i in devices]
@@ -109,25 +122,62 @@ for i in open(CSV,'r').read().split('\n'):
 n=len(data)
 i=-1
 
+if SWITCH==_SOCKET:
+    con=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    try:
+        con.connect(ADDR)
+    except:
+        pt('SFailed: %s'%(ADDR,))
+        SWITCH=_READ
+    else:
+        pt('SConnect: %s'%(ADDR,))
+
+
 def getmsg()->bytes:
+    global SWITCH,i
     while not all(cache_flag.values()):
-        if OFFLINE:
+        if SWITCH!=_BLEAK:
             break
         time.sleep(0.01)
-    if OFFLINE:
+    if SWITCH==_SOCKET:
+        try:
+            con.send(KEY)
+            return con.recv(1024)
+        except:
+            pt('SFailed: %s'%(ADDR,))
+            SWITCH=_READ
+    if SWITCH==_READ:
         i=(i+1)%n
         return data[i]
     ans=''
     for i in devices:
         ans+=','.join([str(j) for j in cache[i]])
-        ans+='\n' if i is devices[-1] else ','
+        ans+='' if i is devices[-1] else ','
         cache_flag[i]=False
     return ans.encode('utf8')
 
 
-def con()->None:
+def mian()->None:
+    a=time.time()
+    count=0
     while True:
-        print(getmsg().decode('utf8'),flush=True)
+        msg=getmsg().decode('utf8')
+        count+=1
+        while time.time()-a<0.05:
+            time.sleep(0.01)
+        a=time.time()
+        if DEBUG:
+            pt(count)
+        else:
+            pt(msg,flush=True)
 
-threading.Thread(target=con,daemon=True).start()
-asyncio.run(main())
+threading.Thread(target=mian,daemon=True).start()
+if SWITCH==_BLEAK:
+    try:
+        asyncio.run(main())
+    except:
+        pt('BFailed: main')
+        SWITCH=_READ
+else:
+    while True:
+        time.sleep(1000)

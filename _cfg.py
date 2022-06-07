@@ -23,7 +23,9 @@ cfg={
     'imuReadUUID':      '0000FFE4-0000-1000-8000-00805F9A34FB',
     'imuServiceUUID':   '0000FFE5-0000-1000-8000-00805F9A34FB',
     'imuWriteUUID':     '0000FFE9-0000-1000-8000-00805F9A34FB',
-    'alpha':0.8
+    'alpha':0.8,
+    'ip':'127.0.0.1',
+    'port':23333,
 }
 for i in cfg['collect']:
     assert i in cfg
