@@ -10,16 +10,20 @@ _READ='_READ'
 _SOCKET='_SOCKET'
 
 SWITCH=_SOCKET
-DEBUG=True
-
-if SWITCH==_SOCKET:
-    import socket
-if SWITCH==_BLEAK:
-    from bleak import BleakClient
+DEBUG=False
 
 def pt(s:str,flush:bool=False)->None:
     if flush or DEBUG:
         print(s,flush=True)
+
+if SWITCH==_SOCKET:
+    import socket
+if SWITCH==_BLEAK:
+    try:
+        from bleak import BleakClient
+    except:
+        pt('Bleak not found')
+        SWITCH=_READ
 
 
 cfg=json.load(open(os.path.join(os.path.dirname(__file__),'collect.json'),'rb'))
