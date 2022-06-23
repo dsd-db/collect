@@ -9,24 +9,24 @@ _BLEAK='_BLEAK'
 _READ='_READ'
 _SOCKET='_SOCKET'
 
-SWITCH=_SOCKET
-DEBUG=False
+cfg=json.load(open(os.path.join(os.path.dirname(__file__),'collect.json'),'rb'))
+MODE=cfg['mode']
+DEBUG=cfg['debug']
 
 def pt(s:str,flush:bool=False)->None:
     if flush or DEBUG:
         print(s,flush=True)
 
-if SWITCH==_SOCKET:
+if MODE==_SOCKET:
     import socket
-if SWITCH==_BLEAK:
+if MODE==_BLEAK:
     try:
         from bleak import BleakClient
     except:
-        pt('Bleak not found')
-        SWITCH=_READ
+        pt('BFailed: No module bleak')
+        MODE=_READ
 
 
-cfg=json.load(open(os.path.join(os.path.dirname(__file__),'collect.json'),'rb'))
 alpha=cfg['alpha']
 devices=[cfg[i] for i in cfg['collect']]
 ADDR=(cfg['ip'],cfg['port'])
@@ -97,7 +97,7 @@ def notification_handler(devid):
     return handler
 
 async def run(devid):
-    global SWITCH
+    global MODE
     _count=0
     while True:
         try:
@@ -110,7 +110,7 @@ async def run(devid):
             _count+=1
             if _count>=10:
                 pt('BFailed: %s'%(devid,))
-                SWITCH=_READ
+                MODE=_READ
                 return
 
 async def main():
@@ -126,31 +126,31 @@ for i in open(CSV,'r').read().split('\n'):
 n=len(data)
 i=-1
 
-if SWITCH==_SOCKET:
+if MODE==_SOCKET:
     con=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     try:
         con.connect(ADDR)
     except:
         pt('SFailed: %s'%(ADDR,))
-        SWITCH=_READ
+        MODE=_READ
     else:
         pt('SConnect: %s'%(ADDR,))
 
 
 def getmsg()->bytes:
-    global SWITCH,i
+    global MODE,i
     while not all(cache_flag.values()):
-        if SWITCH!=_BLEAK:
+        if MODE!=_BLEAK:
             break
         time.sleep(0.01)
-    if SWITCH==_SOCKET:
+    if MODE==_SOCKET:
         try:
             con.send(KEY)
             return con.recv(1024)
         except:
             pt('SFailed: %s'%(ADDR,))
-            SWITCH=_READ
-    if SWITCH==_READ:
+            MODE=_READ
+    if MODE==_READ:
         i=(i+1)%n
         return data[i]
     ans=''
@@ -176,12 +176,12 @@ def mian()->None:
             pt(msg,flush=True)
 
 threading.Thread(target=mian,daemon=True).start()
-if SWITCH==_BLEAK:
+if MODE==_BLEAK:
     try:
         asyncio.run(main())
     except:
         pt('BFailed: main')
-        SWITCH=_READ
+        MODE=_READ
 else:
     while True:
         time.sleep(1000)

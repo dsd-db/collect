@@ -15,6 +15,14 @@ D7:0F:4F:1D:4F:B5: WT901-L2
 E8:67:FE:A6:D4:3C: WT901-R3
 '''
 
+_BLEAK='_BLEAK'
+_READ='_READ'
+_SOCKET='_SOCKET'
+
+MODE=_SOCKET
+
+DEBUG=0
+
 cfg={
     'collect':['WT901-L1','WT901-L2','WT901-R3'],
     'WT901-L1':'D1:7A:2A:54:02:95',
@@ -26,6 +34,8 @@ cfg={
     'alpha':0.8,
     'ip':'127.0.0.1',
     'port':23333,
+    'mode':MODE,
+    'debug':DEBUG,
 }
 for i in cfg['collect']:
     assert i in cfg
